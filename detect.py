@@ -18,12 +18,20 @@ path_to_allPeptides = 'allPeptides.txt'
 
 #%%
 def codonify(seq):
+    """
+    input: a nucleotide sequence (not necessarily a string)
+    output: a list of codons
+    """
     seq = str(seq)
     l = len(seq)
     return [seq[i:i+3] for i in xrange(0,l,3)]
 
 
 def find_proteins(base_seq):
+    """
+    input: a peptide sequence (string)
+    output: the names of proteins containing that sequence 
+    """
     tbr = " ".join([names_list[i] for i in np.searchsorted(boundaries_aa-1, SA_search(base_seq, W_aa, sa))])
     if tbr.strip(" ") == '':
         return ''
@@ -31,6 +39,13 @@ def find_proteins(base_seq):
         return tbr
                 
 def fetch_codon(base_seq, modified_pos):
+    """
+    input: the original aa sequence of a peptide (base_seq),
+            and the relative position of the modification.
+    output: returns the list of all codons possibly associated 
+            with the substitution, presented as a string separated
+            by white spaces.
+    """
     possible_codons = []
     proteins = find_proteins(base_seq)
     if proteins:
@@ -48,6 +63,11 @@ def fetch_codon(base_seq, modified_pos):
     return " ".join(possible_codons)
 
 def fetch_best_codons(modified_seq):
+    """
+    input: a modified sequence, e.g. LQV(0.91)A(0.09)EK
+    output: the list of codons associated with the most likely
+            position
+    """
     possible_sites = re.findall('\(([^\)]+)\)', modified_seq)
     best_site = np.argmax([float(i) for i in possible_sites])
     modified_pos_prime = [m.start()-1 for m in re.finditer('\(',modified_seq) ][best_site]
@@ -57,6 +77,10 @@ def fetch_best_codons(modified_seq):
 
 
 def find_substitution_position_local(modified_seq, protein):
+    """
+    returns the position of a substitutions relative to the start
+    of the protein sequence
+    """
     possible_sites = re.findall('\(([^\)]+)\)', modified_seq)
     best_site = np.argmax([float(i) for i in possible_sites])
     modified_pos_prime = [m.start()-1 for m in re.finditer('\(',modified_seq) ][best_site]
@@ -68,6 +92,10 @@ def find_substitution_position_local(modified_seq, protein):
     return i
 
 def find_positions_local(modified_seq, proteins):
+    """
+    returns the position of a substitutions relative to the start
+    of the protein sequence, across all the codons
+    """
     positions = []
     for prot in proteins.split(" "):
         positions.append(str(find_substitution_position_local(modified_seq, prot)))
