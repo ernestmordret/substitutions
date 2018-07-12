@@ -113,6 +113,11 @@ def is_gene(record):
 
 
 def refine_localization_probabilities(modified_seq, threshold = 0.05):
+	"""
+	returns the AAs that were possibly modified (with p > threshold).
+	Input: modified sequence (a string of AA with p of each to contain modification: APKV(.7)ML(.3)L means that V was modified with p = .7 and L with p = .3)
+	Output: A string with all candidate AAs separated by ';' (V;L).
+	"""
     modified_sites = [modified_seq[m.start()-1] for m in re.finditer('\(',modified_seq) ]
     weights = [float(i) for i in re.findall('\(([^\)]+)\)',modified_seq)]
     site_probabilities = {}    
@@ -125,6 +130,9 @@ def refine_localization_probabilities(modified_seq, threshold = 0.05):
 
 
 def c_term_probability(modified_sequence):
+	"""
+	Return the probability that C term AA was modified.
+	"""
     if modified_sequence[-1] == ')':
         return float(modified_sequence[:-1].split('(')[-1])
     else:
@@ -139,6 +147,9 @@ def n_term_probability(modified_sequence):
 
 
 def is_prot_nterm(sequence):
+	"""
+	Checks whether the observed peptide lies at the N-term of the protein.
+	"""
     for start in SA_search(sequence, W_aa, sa):
         if W_aa[start-1] == '*':
             return True
