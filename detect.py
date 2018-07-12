@@ -3,7 +3,6 @@
 Created on Tue Aug  2 13:24:37 2016
 
 @author: ernestmordret
-
 """
 
 import pandas as pd
@@ -12,10 +11,8 @@ import re
 from Bio import SeqIO
 from itertools import groupby
 from operator import itemgetter
-
-#specify the path to a nucleotide fasta reference transcriptome
-path_to_fasta = '/Users/ernestmordret/Library/Mobile Documents/com~apple~CloudDocs/Documents/MS_files/sequences/Escherichia_coli_str_k_12_substr_mg1655.ASM584v2.cdna.all.fa'
-path_to_allPeptides = 'allPeptides.txt'
+from params import *
+import warnings
 
 #%%
 def codonify(seq):
@@ -113,11 +110,11 @@ def is_gene(record):
 
 
 def refine_localization_probabilities(modified_seq, threshold = 0.05):
-	"""
-	returns the AAs that were possibly modified (with p > threshold).
-	Input: modified sequence (a string of AA with p of each to contain modification: APKV(.7)ML(.3)L means that V was modified with p = .7 and L with p = .3)
-	Output: A string with all candidate AAs separated by ';' (V;L).
-	"""
+    """
+    returns the AAs that were possibly modified (with p > threshold).
+    Input: modified sequence (a string of AA with p of each to contain modification: APKV(.7)ML(.3)L means that V was modified with p = .7 and L with p = .3)
+    Output: A string with all candidate AAs separated by ';' (V;L).
+    """
     modified_sites = [modified_seq[m.start()-1] for m in re.finditer('\(',modified_seq) ]
     weights = [float(i) for i in re.findall('\(([^\)]+)\)',modified_seq)]
     site_probabilities = {}    
@@ -130,9 +127,9 @@ def refine_localization_probabilities(modified_seq, threshold = 0.05):
 
 
 def c_term_probability(modified_sequence):
-	"""
-	Return the probability that C term AA was modified.
-	"""
+    """
+    Returns the probability that C term AA was modified.
+    """
     if modified_sequence[-1] == ')':
         return float(modified_sequence[:-1].split('(')[-1])
     else:
@@ -140,6 +137,9 @@ def c_term_probability(modified_sequence):
 
 
 def n_term_probability(modified_sequence):
+    """
+    Returns the probability that C term AA was modified.
+    """
     if modified_sequence[1] == '(':
         return float(modified_sequence[2:].split(')')[0])
     else:
@@ -147,9 +147,6 @@ def n_term_probability(modified_sequence):
 
 
 def is_prot_nterm(sequence):
-	"""
-	Checks whether the observed peptide lies at the N-term of the protein.
-	"""
     for start in SA_search(sequence, W_aa, sa):
         if W_aa[start-1] == '*':
             return True
@@ -172,9 +169,6 @@ def get_codon_table():
 
 
 def get_inverted_codon_table():
-	"""
-	Inverts the codon table; from {codon : AA} to {AA : [codon1, ..., codon n}
-	"""
     ct = get_codon_table()
     inv_codon_table = {}
     for k, v in ct.iteritems():
@@ -317,8 +311,7 @@ def create_modified_seq(modified_seq, destination):
 
 
 #%% 
-    
-""" initialization """
+warnings.filterwarnings("ignore")
 bases = 'TCAG'
 codons = [a+b+c for a in bases for b in bases for c in bases]
 amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
@@ -327,7 +320,6 @@ RC = {'A':'T', 'C':'G', 'G':'C', 'T':'A'}
 codon_table = get_codon_table()
 inverted_codon_table = get_inverted_codon_table()
 inverted_codon_table['L'] = inverted_codon_table['L'] + inverted_codon_table['I']
-tol = 0.005 # mass difference tolerance
 MW_dict = {"G": 57.02147, 
             "A" : 71.03712, 
             "S" : 87.03203, 
@@ -350,13 +342,11 @@ MW_dict = {"G": 57.02147,
             "W" : 186.07932,
             }
 
-
-
 subs_dict = { i+' to '+j : MW_dict[j] - MW_dict[i] for i in MW_dict for j in MW_dict if i!=j}
 del subs_dict['L to I']
 del subs_dict['I to L']
 
-for k,v in subs_dict.items(): # unify I and L
+for k,v in subs_dict.items():
     if k[-1]=='I':
         subs_dict[k+'/L'] = v
         del subs_dict[k]
@@ -370,10 +360,6 @@ names_list = []
 record_dict = {}
 boundaries_aa = [0]
 W_codons = []
-##################################################################
-""" MODIFY TO HANDLE ANY GENOME ANNOTATION """
-##################################################################
-""" builds a set of containers for the FASTA file records """
 for record in SeqIO.parse(open(path_to_fasta,'rU'),'fasta'):
     record.seq = record.seq.upper()    
     if is_gene(record):
@@ -389,7 +375,6 @@ for record in SeqIO.parse(open(path_to_fasta,'rU'),'fasta'):
         boundaries_aa.append(boundaries_aa[-1]+len(translation))
         W_codons.extend(list(codonify(record.seq)))
 
-""" Suffix array construction """
 boundaries_aa = np.array(boundaries_aa[1:])
 W_aa = ''.join(translated_record_list)
 sa = suffix_array(W_aa)
@@ -399,26 +384,23 @@ sa_ambiguous = suffix_array(W_aa_ambiguous)
 AAs = 'ACDEFGHIKLMNPQRSTVWY'
 sites = list(AAs)+['nterm','cterm']
 
-df_iter = pd.read_csv(path_to_allPeptides, sep='\t', chunksize = 10000, iterator=True)
+dp_columns = [u'Raw file', u'Charge', u'm/z', u'Retention time', 
+              u'Sequence', u'Proteins', u'DP Base Sequence',
+              u'DP Mass Difference', u'DP Time Difference', u'DP PEP',
+              u'DP Base Sequence', u'DP Probabilities', 
+              u'DP Positional Probability', u'DP Decoy']
+
+df_iter = pd.read_csv(path_to_allPeptides, sep='\t', chunksize = 10000, iterator=True, usecols=dp_columns)
 dp = pd.concat( chunk[pd.notnull(chunk['DP Mass Difference'])] for chunk in df_iter)
 dp.reset_index(drop=True, inplace=True)
 
 dp['DPMD'] = dp['DP Mass Difference']
-dp['DPTD'] = dp['DP Time Difference']
 dp['DPAA_noterm'] = dp['DP Probabilities'].map(refine_localization_probabilities)
-dp['logFC'] = np.log10(dp['DP Ratio mod/base'])
 dp['nterm'] = dp['DP Probabilities'].map(n_term_probability)
 dp['cterm'] = dp['DP Probabilities'].map(c_term_probability)
 dp['prot_nterm'] = dp['DP Base Sequence'].map(is_prot_nterm)
 dp['prot_cterm'] = dp['DP Base Sequence'].map(is_prot_cterm)
 
-
-""" 
-Filters possible modifications. Filters by:
-1. Mass difference
-2. Location of the modification on the peptide - N,C term AAs can show MS artifacts
-3. Location of the peptide within the protein - N,C term peptides have specific modifications.
-"""
 danger_mods = pd.read_pickle('danger_mods') #defined in randomize_substutions.py
 dp['danger'] = False
 for mod in danger_mods.iterrows():
@@ -431,13 +413,13 @@ for mod in danger_mods.iterrows():
     
     term_filter = True
     if position == 'Protein N-term':
-        term_filter = (dp.nterm > 0.05) & dp.prot_nterm
+        term_filter = (dp.nterm > n_term_prob_cutoff) & dp.prot_nterm
     elif position == 'Protein C-term':
-        term_filter = (dp.cterm > 0.05) & dp.prot_cterm
+        term_filter = (dp.cterm > c_term_prob_cutoff) & dp.prot_cterm
     elif position == 'Any N-term':
-        term_filter = dp.nterm > 0.05
+        term_filter = dp.nterm > n_term_prob_cutoff
     elif position == 'Any C-term':
-        term_filter = dp.cterm > 0.05
+        term_filter = dp.cterm > c_term_prob_cutoff
     
     site_filter = True
     if site in amino_acids:    
@@ -445,9 +427,7 @@ for mod in danger_mods.iterrows():
     
     dp.loc[site_filter & term_filter & mass_filter, 'danger'] = True
 
-"""
-Filter by AA mass difference
-"""
+
 dp['substitution'] = False
 for i in sorted(subs_dict.keys()):
     delta_m = subs_dict[i]
@@ -475,10 +455,10 @@ for label in mask.index:
 subs = dp[dp['substitution']!=False].copy()
 subs['proteins'] = subs['DP Base Sequence'].map(find_proteins)
 subs['protein'] = subs['proteins'].map(lambda x: x.split(' ')[0] if len(x)>0 else float('NaN'))
-subs = subs[pd.notnull(subs['protein'])] # in case of not-matching fasta files
+subs = subs[pd.notnull(subs['protein'])]
 
 subs['codons'] = float('NaN')
-subs.loc[ subs['DP Positional Probability'] > 0.95, 'codons' ] = subs[ subs['DP Positional Probability'] > 0.95 ]['DP Probabilities'].map(fetch_best_codons)
+subs.loc[ subs['DP Positional Probability'] > positional_probability_cutoff, 'codons' ] = subs[ subs['DP Positional Probability'] > positional_probability_cutoff ]['DP Probabilities'].map(fetch_best_codons)
 subs['codon'] = subs['codons'].map(lambda x: x.split(' ')[0] if len(set(x.split(' ')))==1 else float('NaN'))
 subs['destination'] = subs['substitution'].map(lambda x: x[-1] if x else False)
 subs['origin'] = subs['substitution'].map(lambda x: x[0] if x else False)
@@ -494,15 +474,12 @@ subs = subs[subs['modified_sequence'].map(lambda x: find_homologous_peptide(x))]
 
 subs.sort_values('DP PEP', inplace = True)
 subs['decoy'] = pd.notnull(subs['DP Decoy'])
-cut_off = np.max(np.where(np.array([i/float(j) for i,j in zip(subs['decoy'].cumsum(), range(1,len(subs)+1))])<0.01))
+cut_off = np.max(np.where(np.array([i/float(j) for i,j in zip(subs['decoy'].cumsum(), range(1,len(subs)+1))])<fdr))
 subs = subs.iloc[:cut_off+1]
 
-subs['Solubility'] = subs['Raw file'].map(lambda x: x[-7])
-subs['Fraction'] = subs['Raw file'].map(lambda x: int(x[-1]))
-subs['Experiment'] = subs['Raw file'].map(lambda x: x[-6:-2])
 #%%
 subs = subs[~subs.decoy]
 
-subs.to_pickle('subs')
-subs.to_csv('subs.csv')
-dp.to_pickle('dp')
+subs.to_pickle(output_dir+'/subs')
+subs.to_csv(output_dir+'/subs.csv')
+dp.to_pickle(output_dir+'/dp')
