@@ -172,6 +172,9 @@ def get_codon_table():
 
 
 def get_inverted_codon_table():
+	"""
+	Inverts the codon table; from {codon : AA} to {AA : [codon1, ..., codon n}
+	"""
     ct = get_codon_table()
     inv_codon_table = {}
     for k, v in ct.iteritems():
