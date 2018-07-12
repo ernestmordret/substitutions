@@ -317,7 +317,8 @@ def create_modified_seq(modified_seq, destination):
 
 
 #%% 
-
+    
+""" initialization """
 bases = 'TCAG'
 codons = [a+b+c for a in bases for b in bases for c in bases]
 amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
@@ -326,7 +327,7 @@ RC = {'A':'T', 'C':'G', 'G':'C', 'T':'A'}
 codon_table = get_codon_table()
 inverted_codon_table = get_inverted_codon_table()
 inverted_codon_table['L'] = inverted_codon_table['L'] + inverted_codon_table['I']
-tol = 0.005
+tol = 0.005 # mass difference tolerance
 MW_dict = {"G": 57.02147, 
             "A" : 71.03712, 
             "S" : 87.03203, 
@@ -349,11 +350,13 @@ MW_dict = {"G": 57.02147,
             "W" : 186.07932,
             }
 
+
+
 subs_dict = { i+' to '+j : MW_dict[j] - MW_dict[i] for i in MW_dict for j in MW_dict if i!=j}
 del subs_dict['L to I']
 del subs_dict['I to L']
 
-for k,v in subs_dict.items():
+for k,v in subs_dict.items(): # unify I and L
     if k[-1]=='I':
         subs_dict[k+'/L'] = v
         del subs_dict[k]
@@ -367,6 +370,9 @@ names_list = []
 record_dict = {}
 boundaries_aa = [0]
 W_codons = []
+##################################################################
+""" MODIFY TO HANDLE ANY GENOME ANNOTATION """
+##################################################################
 for record in SeqIO.parse(open(path_to_fasta,'rU'),'fasta'):
     record.seq = record.seq.upper()    
     if is_gene(record):
