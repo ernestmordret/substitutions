@@ -373,6 +373,7 @@ W_codons = []
 ##################################################################
 """ MODIFY TO HANDLE ANY GENOME ANNOTATION """
 ##################################################################
+""" builds a set of containers for the FASTA file records """
 for record in SeqIO.parse(open(path_to_fasta,'rU'),'fasta'):
     record.seq = record.seq.upper()    
     if is_gene(record):
@@ -388,6 +389,7 @@ for record in SeqIO.parse(open(path_to_fasta,'rU'),'fasta'):
         boundaries_aa.append(boundaries_aa[-1]+len(translation))
         W_codons.extend(list(codonify(record.seq)))
 
+""" Suffix array construction """
 boundaries_aa = np.array(boundaries_aa[1:])
 W_aa = ''.join(translated_record_list)
 sa = suffix_array(W_aa)
@@ -410,6 +412,13 @@ dp['cterm'] = dp['DP Probabilities'].map(c_term_probability)
 dp['prot_nterm'] = dp['DP Base Sequence'].map(is_prot_nterm)
 dp['prot_cterm'] = dp['DP Base Sequence'].map(is_prot_cterm)
 
+
+""" 
+Filters possible modifications. Filters by:
+1. Mass difference
+2. Location of the modification on the peptide - N,C term AAs can show MS artifacts
+3. Location of the peptide within the protein - N,C term peptides have specific modifications.
+"""
 danger_mods = pd.read_pickle('danger_mods') #defined in randomize_substutions.py
 dp['danger'] = False
 for mod in danger_mods.iterrows():
@@ -436,7 +445,9 @@ for mod in danger_mods.iterrows():
     
     dp.loc[site_filter & term_filter & mass_filter, 'danger'] = True
 
-
+"""
+Filter by AA mass difference
+"""
 dp['substitution'] = False
 for i in sorted(subs_dict.keys()):
     delta_m = subs_dict[i]
@@ -464,7 +475,7 @@ for label in mask.index:
 subs = dp[dp['substitution']!=False].copy()
 subs['proteins'] = subs['DP Base Sequence'].map(find_proteins)
 subs['protein'] = subs['proteins'].map(lambda x: x.split(' ')[0] if len(x)>0 else float('NaN'))
-subs = subs[pd.notnull(subs['protein'])]
+subs = subs[pd.notnull(subs['protein'])] # in case of not-matching fasta files
 
 subs['codons'] = float('NaN')
 subs.loc[ subs['DP Positional Probability'] > 0.95, 'codons' ] = subs[ subs['DP Positional Probability'] > 0.95 ]['DP Probabilities'].map(fetch_best_codons)
