@@ -480,6 +480,5 @@ subs = subs.iloc[:cut_off+1]
 #%%
 subs = subs[~subs.decoy]
 
-subs.to_pickle(output_dir+'/subs')
-subs.to_csv(output_dir+'/subs.csv')
-dp.to_pickle(output_dir+'/dp')
+subs.to_pickle(os.path.join(output_dir,'subs'))
+subs.to_csv(os.path.join(output_dir,'subs.csv'))
