@@ -147,6 +147,9 @@ def n_term_probability(modified_sequence):
 
 
 def is_prot_nterm(sequence):
+    """
+    Does the peptide originate at the protein's N-term
+    """
     for start in SA_search(sequence, W_aa, sa):
         if W_aa[start-1] == '*':
             return True
@@ -181,6 +184,10 @@ def hamming(s1,s2): return sum(a!=b for a,b in zip(s1,s2))
 
 
 def is_mispairing(row):
+    """
+    Returns whether the substitution is mispairing or misloading, based on the
+    near-cognate mask.
+    """
     codon = row['codon']
     destination = row['destination']
     if pd.notnull(codon) and pd.notnull(destination):
@@ -292,6 +299,10 @@ def SA_search(P, W, sa):
 
 
 def find_homologous_peptide(P):
+    """
+    Gets a peptide and returns whether it has homolegous in the genome.
+    If so, that peptide is discarded.
+    """
     if len(SA_search('K' + P, W_aa_ambiguous, sa_ambiguous)) > 0:
         return False
     if len(SA_search('R' + P, W_aa_ambiguous, sa_ambiguous)) > 0:
