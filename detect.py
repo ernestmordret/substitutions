@@ -314,7 +314,7 @@ def create_modified_seq(modified_seq, destination):
 warnings.filterwarnings("ignore")
 bases = 'TCAG'
 codons = [a+b+c for a in bases for b in bases for c in bases]
-amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG' #corresponds to codons
 RC = {'A':'T', 'C':'G', 'G':'C', 'T':'A'}
 
 codon_table = get_codon_table()
@@ -346,7 +346,7 @@ subs_dict = { i+' to '+j : MW_dict[j] - MW_dict[i] for i in MW_dict for j in MW_
 del subs_dict['L to I']
 del subs_dict['I to L']
 
-for k,v in subs_dict.items():
+for k,v in subs_dict.items(): # unifies I and L
     if k[-1]=='I':
         subs_dict[k+'/L'] = v
         del subs_dict[k]
@@ -354,6 +354,8 @@ for k,v in subs_dict.items():
 
 sorted_subs, sorted_sub_masses = zip(*sorted(subs_dict.items(), key= lambda x: x[1]))
 
+
+""" Loads CDS fasta file and builds records of genes within it """
 record_list = []
 translated_record_list = []
 names_list = []
@@ -375,7 +377,7 @@ for record in SeqIO.parse(open(path_to_fasta,'rU'),'fasta'):
         boundaries_aa.append(boundaries_aa[-1]+len(translation))
         W_codons.extend(list(codonify(record.seq)))
 
-boundaries_aa = np.array(boundaries_aa[1:])
+boundaries_aa = np.array(boundaries_aa[1:]) # an array annotating the genes' cumulative length
 W_aa = ''.join(translated_record_list)
 sa = suffix_array(W_aa)
 W_aa_ambiguous = W_aa.replace('I','L')
@@ -396,11 +398,13 @@ dp.reset_index(drop=True, inplace=True)
 
 dp['DPMD'] = dp['DP Mass Difference']
 dp['DPAA_noterm'] = dp['DP Probabilities'].map(refine_localization_probabilities)
-dp['nterm'] = dp['DP Probabilities'].map(n_term_probability)
+dp['nterm'] = dp['DP Probabilities'].map(n_term_probability) # p(N-term AA was substituted)
 dp['cterm'] = dp['DP Probabilities'].map(c_term_probability)
-dp['prot_nterm'] = dp['DP Base Sequence'].map(is_prot_nterm)
+dp['prot_nterm'] = dp['DP Base Sequence'].map(is_prot_nterm) # Does the peptide come from the N-term of the protein
 dp['prot_cterm'] = dp['DP Base Sequence'].map(is_prot_cterm)
 
+
+""" Handles mass differences that can be explained as PTMs """
 danger_mods = pd.read_pickle('danger_mods') #defined in randomize_substutions.py
 dp['danger'] = False
 for mod in danger_mods.iterrows():
@@ -437,7 +441,7 @@ for i in sorted(subs_dict.keys()):
 
 #%%
 """
-Create mask for mispairing
+Create mask for mispairing. A binary dataframe indicating for each codon the AAs encoded by near-cognate codons. 
 """            
 mask = pd.DataFrame(data = False, index = codons, columns=list('ACDEFGHKLMNPQRSTVWY'),dtype=float)    
 for label in codons:
@@ -446,7 +450,7 @@ for label in codons:
     mask.loc[label] =[i in reachable_aa for i in 'ACDEFGHKLMNPQRSTVWY']
 
 
-for label in mask.index:
+for label in mask.index: # removes "near-cognates" that encodes the same AA
     for col in mask.columns:
         if label in inverted_codon_table[col]:
             mask.loc[label, col] = float('NaN')
