@@ -7,4 +7,5 @@ numpy
 scipy  
 biopython  
 pandas  
-re
+re  
+seaborn
