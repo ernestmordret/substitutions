@@ -459,7 +459,7 @@ for label in mask.index: # removes "near-cognates" that encodes the same AA
 subs = dp[dp['substitution']!=False].copy()
 subs['proteins'] = subs['DP Base Sequence'].map(find_proteins)
 subs['protein'] = subs['proteins'].map(lambda x: x.split(' ')[0] if len(x)>0 else float('NaN'))
-subs = subs[pd.notnull(subs['protein'])]
+subs = subs[pd.notnull(subs['protein'])] #mismatching files?
 
 subs['codons'] = float('NaN')
 subs.loc[ subs['DP Positional Probability'] > positional_probability_cutoff, 'codons' ] = subs[ subs['DP Positional Probability'] > positional_probability_cutoff ]['DP Probabilities'].map(fetch_best_codons)
