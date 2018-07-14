@@ -15,6 +15,11 @@ import os
 
 path_to_subs = os.path.join(output_dir,'subs')
 def create_modified_seq(modified_seq, destination):
+    """
+    Input: base sequence with probabilities of substitution for each AA, observed destination AA.
+    Output: modified sequence.
+    (ACY(0.1)KFL(0.9)S, Y) -> ACYKFYS
+    """
     possible_sites = re.findall('\(([^\)]+)\)', modified_seq)
     best_site = np.argmax([float(i) for i in possible_sites])
     modified_pos_prime = [m.start()-1 for m in re.finditer('\(',modified_seq) ][best_site]
@@ -24,11 +29,18 @@ def create_modified_seq(modified_seq, destination):
 
 columns_evidence = [u'Raw file', u'Retention time', u'Calibrated retention time']
 
+
+"""
+matchedFeatured.txt contains features that weren't identified and appeared in more than one sample.
+Those features have both uncalibrated and calibrated retention time.
+subs, which is derived from allPeptides.txt, has only uncalibrated retention time;
+to extract features from mf.txt, retention times are calibrated using evidence.txt
+"""
 evidence = pd.read_csv(path_to_evidence,
                        sep = '\t', usecols = columns_evidence)
 
 calibrate = {}
-for i,j in evidence.groupby('Raw file'):
+for i,j in evidence.groupby('Raw file'): # RT for each file (fraction) is being calibrated
     calibrate[i] = interp1d(j['Retention time'], j['Calibrated retention time'],fill_value="extrapolate")
 
 subs = pd.read_pickle(path_to_subs)
@@ -92,7 +104,7 @@ for i,j in gb:
 
     if l>=1:
         substitution_index += 1
-        d = pd.concat([m[intensities].sum(),pep.loc[base_sequence,intensities]], axis=1)
+        d = pd.concat([m[intensities].sum(),pep.loc[base_sequence,intensities]], axis=1) # if the response curve isn't linear, why is it OK to sum intensities?
         d.columns=['DP', 'Base']
         d['substitution_index'] = substitution_index
         d['codon'] = ref_dp['codon'] 
