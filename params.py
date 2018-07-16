@@ -6,6 +6,8 @@ Created on Wed Jul 11 10:14:41 2018
 @author: ernestmordret
 """
 
+output_dir = 'output'
+
 """
 PARAMETERS FOR DETECT
 """
@@ -31,6 +33,13 @@ positional_probability_cutoff = 0.95
 
 #FDR for the final target-decoy FDR procedure
 fdr = 0.01
+
+#OPTIONAL PARAMETER : provide a regex to extract the gene name from the
+#description of the fasta records.
+#ex: regex = 'gene_symbol\:(.*)$'
+#if the regex parameter is not defined, the program will use the fasta
+#id in place of the gene name.
+regex = 'gene_symbol\:(.*)(\s|$)'
 
 """
 PARAMETERS FOR QUANTIFY
