@@ -140,4 +140,5 @@ D['substitution'] = float('NaN')
 D.loc[pd.notnull(D['codon']),'substitution'] = D[pd.notnull(D['codon'])].apply(lambda x: x['codon']+' to '+x['destination'],axis=1)
 D.reset_index(inplace = True)
 D.to_pickle(os.path.join(output_dir,'qSubs'))
+D.to_csv(os.path.join(output_dir,'qSubs'))
 
