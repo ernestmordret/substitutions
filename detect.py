@@ -13,6 +13,7 @@ from itertools import groupby
 from operator import itemgetter
 from params import *
 import warnings
+import os
 
 #%%
 def codonify(seq):
