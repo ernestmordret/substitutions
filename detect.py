@@ -406,6 +406,7 @@ dp_columns = [u'Raw file', u'Charge', u'm/z', u'Retention time',
 
 df_iter = pd.read_csv(path_to_allPeptides, sep='\t', chunksize = 10000, iterator=True, usecols=dp_columns)
 dp = pd.concat( chunk[pd.notnull(chunk['DP Mass Difference'])] for chunk in df_iter)
+dp = dp[~dp['Raw file'].str.contains('|'.join(excluded_samples))]
 dp.reset_index(drop=True, inplace=True)
 
 dp['DPMD'] = dp['DP Mass Difference']
