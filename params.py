@@ -45,6 +45,8 @@ regex = 'gene_symbol\:(.*)(\s|$)'
 PARAMETERS FOR QUANTIFY
 """
 
+excluded_samples = []
+
 #path to MaxQuant's table, allPeptides.txt
 path_to_evidence = 'evidence.txt'
 

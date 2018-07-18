@@ -14,6 +14,7 @@ from params import *
 import os
 
 path_to_subs = os.path.join(output_dir,'subs')
+
 def create_modified_seq(modified_seq, destination):
     """
     Input: base sequence with probabilities of substitution for each AA, observed destination AA.
@@ -25,9 +26,18 @@ def create_modified_seq(modified_seq, destination):
     modified_pos_prime = [m.start()-1 for m in re.finditer('\(',modified_seq) ][best_site]
     modified_pos = len(re.sub('\(([^\)]+)\)', '', modified_seq[:modified_pos_prime]))
     base_seq = re.sub('\(([^\)]+)\)', '', modified_seq)
-    return base_seq[:modified_pos]+destination+base_seq[modified_pos+1:]
+    return base_seq[:modified_pos] + destination + base_seq[modified_pos+1:]
 
-columns_evidence = [u'Raw file', u'Retention time', u'Calibrated retention time']
+def get_evidence_ids(peptide):
+    evidence_ids = pep.loc[peptide, "Evidence IDs"]
+    return [int(i) for i in evidence_ids.split(';')]
+
+def get_BP_intensities(peptide, charge):
+    x = evidence.loc[get_evidence_ids(peptide)]
+    y = x[x['Charge']==charge].groupby('Sample')['Intensity'].sum()
+    return y.reindex(samples)
+
+columns_evidence = [u'Raw file', u'Retention time', u'Calibrated retention time', u'Intensity', u'Charge']
 
 
 """
@@ -39,11 +49,17 @@ to extract features from mf.txt, retention times are calibrated using evidence.t
 evidence = pd.read_csv(path_to_evidence,
                        sep = '\t', usecols = columns_evidence)
 
+evidence['Sample'] = evidence['Raw file'].map(lambda x: x.split('_')[-2])
+
 calibrate = {}
 for i,j in evidence.groupby('Raw file'): # RT for each file (fraction) is being calibrated
     calibrate[i] = interp1d(j['Retention time'], j['Calibrated retention time'],fill_value="extrapolate")
 
 subs = pd.read_pickle(path_to_subs)
+
+#exclude samples
+subs = subs[~subs['Raw file'].str.contains('|'.join(excluded_samples))]
+
 subs['modified_sequence'] = subs.apply(lambda row : create_modified_seq(row['DP Probabilities'], row['destination']), axis=1) 
 subs['base RT'] =  subs['Retention time'] - subs['DP Time Difference']
 
@@ -64,8 +80,11 @@ pep_head = pd.read_csv(path_to_peptides,
                   index_col = 'Sequence')
 
 intensities = [unicode(i) for i in pep_head.columns if 'Intensity ' in i]
+samples = [i.split()[-1] for i in intensities]
+samples = [i for i in samples if not i in excluded_samples]
+intensities = ['Intensity '+i for i in samples]
 
-pep_columns = [u'Sequence',u'Intensity'] + intensities
+pep_columns = [u'Sequence', u'Intensity', u'Evidence IDs'] + intensities
 
 pep = pd.read_csv(path_to_peptides,
                   sep = '\t', 
@@ -74,10 +93,6 @@ pep = pd.read_csv(path_to_peptides,
 
 pep.replace(0, np.nan, inplace = True)
 
-L = []
-RT = []
-MZ = []
-ratios = []
 D = pd.DataFrame(columns=['DP',
                           'Base',
                           'substitution'])
@@ -104,7 +119,9 @@ for i,j in gb:
 
     if l>=1:
         substitution_index += 1
-        d = pd.concat([m[intensities].sum(),pep.loc[base_sequence,intensities]], axis=1) # if the response curve isn't linear, why is it OK to sum intensities?
+        bps = get_BP_intensities(base_sequence, charge)
+        bps.index = intensities
+        d = pd.concat([m[intensities].sum(),bps], axis=1) # if the response curve isn't linear, why is it OK to sum intensities?
         d.columns=['DP', 'Base']
         d['substitution_index'] = substitution_index
         d['codon'] = ref_dp['codon'] 
@@ -123,3 +140,4 @@ D['substitution'] = float('NaN')
 D.loc[pd.notnull(D['codon']),'substitution'] = D[pd.notnull(D['codon'])].apply(lambda x: x['codon']+' to '+x['destination'],axis=1)
 D.reset_index(inplace = True)
 D.to_pickle(os.path.join(output_dir,'qSubs'))
+
